@@ -1,179 +1,231 @@
-Functional Connectome Analysis for ASD vs TD Subjects
-Overview
+$$ \textbf{Functional Connectome Analysis for ASD vs TD Subjects} $$  
+### *Fisher Z-Transformation • Bonferroni Correction • Bootstrap Confidence Intervals*
 
-This repository analyzes Resting-State fMRI ROI functional connectivity for:
+**Authors:** Dilara Isıklı, Mert Yıldız  
 
-12 Autism Spectrum Disorder (ASD) subjects
+---
 
-12 Typically Developed (TD) subjects
+$$ \textbf{1. Overview} $$
 
-Using their ROI time series, we build correlation matrices, apply Fisher Z-transformation, perform multiple testing correction, and construct true association graphs using:
+This project analyzes resting-state fMRI functional connectivity for:
 
-Fisher-Z confidence intervals
+- **12 Autism Spectrum Disorder (ASD) subjects**
+- **12 Typically Developed (TD) subjects**
 
-Bonferroni correction
+Using ROI-level time series, we compute:
 
-Threshold-based edge selection
+- Correlation matrices  
+- Fisher Z-transformed matrices  
+- Bonferroni-corrected confidence intervals  
+- True association graphs  
+- Bootstrap difference graphs  
 
-Bootstrap confidence intervals
+---
 
-The project produces:
-
-ROI-level connectome graphs for all ASD and TD subjects
-
-Comparison of connectivity strength
-
-Bootstrap-based difference graphs between ASD and TD groups
-
-Methodology
-1. Correlation Matrices
+$$ \textbf{2. Correlation Matrices} $$
 
 For each subject:
 
+```r
 asd_sel_rho <- lapply(asd_sel, cor)
 td_sel_rho  <- lapply(td_sel,  cor)
+```
 
+Each correlation matrix is:
 
-Each correlation matrix is size:
+$$ 116 \times 116 $$
 
-116 × 116 (ROIs)
+---
 
-2. Fisher Z-Transformation
+$$ \textbf{3. Fisher Z-Transformation} $$
 
-For a correlation value $r$:
+To stabilize the variance, each correlation value \( r \) is transformed using:
 
-z = atanh(r)
-
+$$
+z = \frac{1}{2}\ln\left(\frac{1+r}{1-r}\right)
+$$
 
 Variance:
 
-σ = 1 / sqrt(n - 3)
+$$
+\sigma = \frac{1}{\sqrt{n - 3}}, \quad n = 116
+$$
 
+---
 
-with $n = 116$ ROIs.
+$$ \textbf{4. Bonferroni-Corrected Confidence Intervals} $$
 
-3. Bonferroni-Corrected Confidence Intervals
+Bonferroni-adjusted alpha:
 
-We compute the 95% Fisher-Z confidence intervals:
+$$
+\alpha_{\text{bonf}} = \frac{0.05}{\frac{n(n-1)}{2}}
+$$
 
-CI_low  = z - z_{1-α/2} * σ
-CI_upp  = z + z_{1-α/2} * σ
+Confidence interval bounds:
 
+$$
+\text{CI}_{\text{low}} = z - z_{1-\alpha/2}\sigma
+$$
 
-where:
+$$
+\text{CI}_{\text{upp}} = z + z_{1-\alpha/2}\sigma
+$$
 
-α_bonf = 0.05 / [n(n-1)/2]
+---
 
-4. Edge Selection Rule
+$$ \textbf{5. Edge Selection Rule} $$
 
-For each ROI pair $(i,j)$:
+Threshold:
 
-Let
-t = 80th percentile of correlation magnitudes
-(i.e., strong baseline connectivity)
+$$
+t = Q_{0.80}(|r_{ij}|)
+$$
 
-An edge is included if:
+Condition for including edge \((i,j)\):
 
-CI_upp ≤ -t  OR  CI_low ≥ t
+- If  
+  $$
+  \text{CI}_{\text{upp}} \le -t
+  $$  
+  or  
+  $$
+  \text{CI}_{\text{low}} \ge t
+  $$  
+  then the edge is included.
 
+This filters for **significant and strong correlations**.
 
-Interpretation:
+---
 
-Only connections that are significantly strong and not crossing zero are included.
+$$ \textbf{6. Graph Construction} $$
 
-This yields the true association graph.
+Adjacency matrix:
 
-5. Graph Construction
+$$
+G_{ij} =
+\begin{cases}
+r_{ij}, & \text{if edge condition is satisfied} \\
+0, & \text{otherwise}
+\end{cases}
+$$
 
-Using igraph and ggraph, each subject’s adjacency matrix is converted to a circular connectome:
+Graphs visualized using:
 
+```r
 graph_from_adjacency_matrix(G_matrix, mode = "upper", weighted = TRUE)
+```
 
+---
 
-Edges are colored by:
+$$ \textbf{7. ASD vs TD Results} $$
 
-abs(correlation strength)
+### Findings:
 
-Results
-ASD vs TD Graph Comparison
+- TD graphs contain **more edges**  
+- TD subjects show **stronger correlations**  
+- ASD subjects exhibit **sparser connectivity**  
+- Overall, TD networks look more integrated
 
-TD subjects show more edges, meaning stronger and more stable ROI connections.
+This aligns with known neuroimaging patterns.
 
-ASD subjects display sparser graphs, indicating weaker functional connectivity.
+---
 
-This aligns with known literature on ASD neuroconnectivity differences.
+$$ \textbf{8. Without Bonferroni Correction} $$
 
-Without Bonferroni Correction
+Using \( \alpha = 0.05 \):
 
-Using $\alpha = 0.05$ without correction:
+- Many weak edges appear  
+- Network becomes overly dense  
+- Higher risk of false associations  
 
-Many more edges appear.
+Thus, Bonferroni correction is essential for high-dimensional correlation matrices.
 
-Weak correlations are falsely included.
+---
 
-Overestimates connectivity.
+$$ \textbf{9. Bootstrap Difference Analysis} $$
 
-Confirms the necessity of multiple testing correction when analyzing 116×116 ROIs.
+### Standardization:
 
-🧪 Bonus Analysis — Bootstrap Difference Graph
-Standardization
+$$
+X_{\text{std}} = \frac{X - \mu}{\sigma}
+$$
 
-Each subject’s ROI matrix is standardized:
+Group mean matrices:
 
-standardized = (X - mean) / sd
+- \( \bar{X}_{ASD} \)
+- \( \bar{X}_{TD} \)
 
+### Bootstrap:
 
-Group means for ASD and TD are computed across 12 subjects each.
+For \( B = 1000 \):
 
-Bootstrap Procedure
+$$
+R_b^\* = \text{cor}(\bar{X}^\*), \quad b=1,\dots,B
+$$
 
-We generate:
+Standard error:
 
-R_star[,,b] = correlation matrix of mean data with resampled rows
-B = 1000 bootstrap samples
+$$
+SE = \text{sd}(R_1^\*, \dots, R_B^\*)
+$$
 
+### Difference matrix:
 
-Bootstrap standard errors:
+$$
+\Delta = R_{ASD} - R_{TD}
+$$
 
-R_sd = apply(R_star, c(1,2), sd)
+Confidence intervals:
 
-Difference Confidence Intervals
+$$
+\text{CI}_{\text{upp}} = \Delta + z_{1-\alpha/2} \cdot SE
+$$
 
-For each ROI pair:
-
-CI_up   = ρ_ASD - ρ_TD + z_{1-α/2} * sd_diff
-CI_low  = ρ_ASD - ρ_TD - z_{1-α/2} * sd_diff
-
-Difference Graph
+$$
+\text{CI}_{\text{low}} = \Delta - z_{1-\alpha/2} \cdot SE
+$$
 
 Edges included if:
 
-CI_up ≤ -t  OR  CI_low ≥ t
+$$
+\text{CI}_{\text{upp}} \le -t \quad \text{or} \quad \text{CI}_{\text{low}} \ge t
+$$
+
+---
+
+$$ \textbf{10. Interpretation of Bootstrap Difference Graph} $$
+
+The graph shows:
+
+- Strong and significant ASD–TD connectivity differences  
+- ASD shows reduced strength in many ROI pairs  
+- TD exhibits higher functional integration  
+
+Histogram of \( \Delta \) confirms group-level shifts.
+
+---
 
 
-where t is chosen from the 95th percentile of |ASD − TD| differences.
+$$ \textbf{11. Required R Libraries} $$
 
-Interpretation
+```
+corrplot
+igraph
+ggraph
+stats
+```
 
-The bootstrap difference graph shows significant ASD–TD differences.
+---
 
-Strong deviations emphasize ROIs where ASD connectivity is weaker.
+$$ \textbf{12. Summary} $$
 
-Summary
+This pipeline provides:
 
-This project demonstrates:
+- Corrected and reliable connectome inference  
+- ASD vs TD group comparison  
+- Bootstrap-validated significance  
+- High-quality graph visualizations  
 
-✔ Full connectome construction
-✔ Inferential graph analysis
-✔ Use of Fisher-Z & Bonferroni
-✔ Threshold-based association testing
-✔ Group comparison via bootstrapping
-✔ Graph visualization with ggraph
+The results show **weaker and sparser connectivity in ASD**, consistent with scientific literature.
 
-The results confirm:
-
-TD subjects show richer, stronger connectivity.
-
-ASD subjects exhibit reduced functional cohesion.
-
-Bootstrap difference graphs highlight specific ROI pairs driving group differences.
+---
